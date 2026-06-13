@@ -1,0 +1,44 @@
+# Build output
+/build/
+/out/
+/cmake-build-*/
+CMakeUserPresets.json
+compile_commands.json
+
+# Editor and IDE state
+/.idea/
+/.vscode/
+*.swp
+*.swo
+
+# Runtime data
+/data/*
+!/data/.gitkeep
+/logs/
+*.log
+*.aof
+*.rdb
+*.snapshot
+
+# Test and analysis output
+/coverage/
+/temp/
+*.gcda
+*.gcno
+*.profraw
+*.profdata
+
+# Local configuration and secrets
+.env
+.env.*
+settings.json
+credentials.json
+*.pem
+*.key
+*_secret*
+*_token*
+
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,10 @@
+# <type>(<scope>): <subject>
+#
+# Types: feat, fix, docs, refactor, perf, test, chore, build, ci
+# Example: feat(net): add blocking echo server
+#
+# Body: explain why the change is needed and any important trade-offs.
+#
+# Footer examples:
+# Closes #123
+# BREAKING CHANGE: describe the incompatible behavior
