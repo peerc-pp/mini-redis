@@ -4,3 +4,7 @@ Planned components: `Socket`, `Channel`, `Poller`, `EventLoop`, `Acceptor`, `Tcp
 `TcpServer`, and `Buffer`.
 
 This module targets Linux non-blocking sockets and epoll.
+
+Start with the
+[blocking Echo Server milestone](../../docs/milestone-01-blocking-echo-server.md)
+before introducing non-blocking I/O or epoll.

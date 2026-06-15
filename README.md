@@ -45,6 +45,9 @@ On Windows:
 - Use Conventional Commits.
 - Develop features on `feature/*` branches created from `develop`.
 
+New to network programming? Start with
+[Mini-Redis 第一课](docs/START-HERE.md). It intentionally teaches only the first small step.
+
 See [the implementation roadmap](plan/Mini-Redis项目完成路线.md) for the full learning and
 delivery path. See [the Git workflow](docs/git-workflow.md) for repository configuration,
 branching, and commit conventions.
