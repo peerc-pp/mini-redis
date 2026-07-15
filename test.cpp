@@ -130,6 +130,7 @@ int main(){
    
 
     std::unordered_map<int, UniqueFd> clients;
+    std::unordered_map<int, std::string> output_buffers;
 
 while(true){// 调用 accept 等待客户端
     // accept(sockfd, addr, addrlen): 从 listening socket 接收一个新连接。
@@ -146,7 +147,9 @@ while(true){// 调用 accept 等待客户端
     }
 
     for(int i=0;i<n;i++){  
-        if(events[i].data.fd==socket_fd.get()){   
+        int ready_fd = events[i].data.fd;
+        uint32_t ready_events = events[i].events;
+        if(ready_fd== socket_fd.get()){   
             UniqueFd client_fd(accept(socket_fd.get(),nullptr,nullptr));
 
             if(!client_fd.isValid()){
@@ -171,58 +174,116 @@ while(true){// 调用 accept 等待客户端
                 return 1;
             }
             clients.emplace(fd,std::move(client_fd));
+            output_buffers.emplace(fd, "");
 
             // 客户端连接后输出提示
             std::cout << "Client connected\n";
+        }else{
+            bool should_close = false;
+            char buffer[4096];
+            // recv 收数据
+                // recv(sockfd, buf, len, flags): 从 client fd 读取数据。
+                // 参数 1: client fd；参数 2: 写入 buffer；参数 3: 最多读多少字节；参数 4: flags，这里用 0。
+                // 返回值 >0 表示读到字节数；==0 表示对端关闭；==-1 表示出错。
+            if(ready_events&EPOLLIN){
+                ssize_t byte_received=recv(ready_fd,buffer,sizeof(buffer),0);
+                if(byte_received>0){
+                    std::cout<<"Received "<<byte_received<<" bytes from client"<<std::endl;
+                    auto& output = output_buffers.at(ready_fd);
+                    output.append(
+                        buffer,
+                        static_cast<std::size_t>(byte_received)
+                    );
+                    epoll_event updated_event{};
+                    updated_event.events = EPOLLIN | EPOLLOUT;
+                    updated_event.data.fd = ready_fd;
+
+                    if (epoll_ctl(
+                            epoll_fd.get(),
+                            EPOLL_CTL_MOD,
+                            ready_fd,
+                            &updated_event
+                        ) == -1) {
+                        std::perror("epoll_ctl MOD");
+                        should_close = true;
+                    }
 
 
-            // while(true){// 准备 buffer
-            //     char buffer[4096];
-            // // recv 收数据
-            //     // recv(sockfd, buf, len, flags): 从 client fd 读取数据。
-            //     // 参数 1: client fd；参数 2: 写入 buffer；参数 3: 最多读多少字节；参数 4: flags，这里用 0。
-            //     // 返回值 >0 表示读到字节数；==0 表示对端关闭；==-1 表示出错。
-            //     ssize_t byte_received=recv(client_fd.get(),buffer,sizeof(buffer),0);
-            // // 如果收到数据
-            //     if(byte_received>0){
-            //         std::cout<<"Received "<<byte_received<<" bytes from client"<<std::endl;
-            //         // 将数据原样发回去
-            //         ssize_t total_sent=0;
-            //         while(total_sent<byte_received){
-            //             // send(sockfd, buf, len, flags): 向 client fd 发送数据。
-            //             // 参数 1: client fd；参数 2: 待发送数据起点；参数 3: 本次最多发送字节数；参数 4: flags。
-            //             // 返回值 >=0 表示本次实际发送字节数；==-1 表示出错。TCP 下可能 partial write。
-            //             ssize_t byte_sent=send(client_fd.get(),buffer+total_sent,byte_received-total_sent,0);
+                }else if(byte_received==0){
+                    std::cout<<"Client closed the connection"<<std::endl;
+                    should_close = true;
                     
-            //             if(byte_sent==-1){
-            //                 if (errno == EINTR) {
-            //                     continue;
-            //                 }
-            //                 std::perror("send");
-            //                 break;
-            //             }else{
-            //                 total_sent += byte_sent;
-            //                 std::cout<<"Sent "<<byte_sent<<" bytes back to client"<<std::endl;
-            //             }
-            //         }
-            //     }else if(byte_received==0){
-            //         std::cout<<"Client closed the connection"<<std::endl;
-            //         break;
-            //     }else{
-            //         if (errno == EINTR) {
-            //             continue;
-            //         }else if(errno== EAGAIN||errno==EWOULDBLOCK){
-            //                     std::cout<<"no data available now"<<std::endl;
-            //                     break;
-            //         }else{
-            //             std::perror("recv");
-            //                 break;     
-            //         }
+                }else{
+                    if (errno == EINTR) {
+                        continue;
+                    }else if(errno== EAGAIN||errno==EWOULDBLOCK){
+                        std::cout<<"no data available now"<<std::endl;
+                                
+                    }else{
+                        std::perror("recv");
+                        should_close = true;
+                            
+                    }
                 
-            //     }
-            // }
+                }
+            }
+             if (!should_close && (ready_events & EPOLLOUT)) {
+                auto& output = output_buffers.at(ready_fd);
+                        // 发送 output buffer
+                        while(!output.empty()){
+                            ssize_t byte_sent=send(ready_fd,output.data(),output.size(),MSG_NOSIGNAL);
+                            if(byte_sent==-1){
+                                if (errno == EINTR) {
+                                    continue;
+                                }
+                                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                                    // 暂时停止发送，避免 event loop 卡死
+                                    break;
+                                }
+                                std::perror("send");
+                                should_close = true;
+                                break;
+                                
+                            }else if(byte_sent>0){
+                                output.erase(
+                                    0,
+                                    static_cast<std::size_t>(byte_sent)
+                                );
+                            }else{
+                                should_close = true;
+                                break;
+                            }
+                        }
+                if (!should_close && output.empty()) {
+                    epoll_event updated_event{};
+                    updated_event.events = EPOLLIN;
+                    updated_event.data.fd = ready_fd;
+
+                    if (epoll_ctl(
+                            epoll_fd.get(),
+                            EPOLL_CTL_MOD,
+                            ready_fd,
+                            &updated_event
+                        ) == -1) {
+                        std::perror("epoll_ctl MOD EPOLLIN");
+                        should_close = true;
+                    }
+                }
+            }
+
+                if (should_close) {
+                    epoll_ctl(
+                        epoll_fd.get(),
+                        EPOLL_CTL_DEL,
+                        ready_fd,
+                        nullptr
+                    );
+
+                    clients.erase(ready_fd);
+                    output_buffers.erase(ready_fd);
+                }
+            }
         }
-    }
 }
 
 
