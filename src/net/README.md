@@ -1,10 +1,23 @@
 # Network Module
 
-Planned components: `Socket`, `Channel`, `Poller`, `EventLoop`, `Acceptor`, `TcpConnection`,
-`TcpServer`, and `Buffer`.
+Implemented components:
 
-This module targets Linux non-blocking sockets and epoll.
+- `Socket` and `UniqueFd`: socket creation and fd ownership.
+- `Poller`, `Channel`, and `EventLoop`: epoll LT event registration and dispatch.
+- `Acceptor`: non-blocking accept loop.
+- `TcpConnection`: connection lifecycle, input/output buffers, partial writes, and backpressure
+  limits.
+- `TcpServer`: listening socket and active connection ownership.
+- `Buffer`: growable TCP byte-stream storage.
 
-Start with the
-[blocking Echo Server milestone](../../docs/milestone-01-blocking-echo-server.md)
-before introducing non-blocking I/O or epoll.
+The module targets Linux non-blocking sockets and epoll. `EventLoop` must outlive every
+`Acceptor`, `TcpConnection`, and `TcpServer` registered with it.
+
+Run the complete network verification:
+
+```bash
+./scripts/test-network.sh
+```
+
+The earlier learning step remains documented in the
+[blocking Echo Server milestone](../../docs/milestone-01-blocking-echo-server.md).

@@ -1,6 +1,16 @@
 add_library(
   mini_redis_core
+  base/unique_fd.cc
   base/version.cc
+  net/socket.cc
+  net/blocking_echo_server.cc
+  net/poller.cc
+  net/channel.cc
+  net/event_loop.cc
+  net/buffer.cc
+  net/acceptor.cc
+  net/tcp_connection.cc
+  net/tcp_server.cc
 )
 
 target_include_directories(
