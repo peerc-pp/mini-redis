@@ -11,6 +11,9 @@ add_library(
   net/acceptor.cc
   net/tcp_connection.cc
   net/tcp_server.cc
+  protocol/resp_value.cc
+  protocol/resp_encoder.cc
+  protocol/resp_parser.cc
 )
 
 target_include_directories(
