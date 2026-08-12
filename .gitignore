@@ -23,6 +23,7 @@ compile_commands.json
 # Test and analysis output
 /coverage/
 /temp/
+/test
 *.gcda
 *.gcno
 *.profraw

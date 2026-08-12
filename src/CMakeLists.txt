@@ -14,6 +14,8 @@ add_library(
   protocol/resp_value.cc
   protocol/resp_encoder.cc
   protocol/resp_parser.cc
+  server/session.cc
+  server/command_registry.cc
 )
 
 target_include_directories(

@@ -6,17 +6,21 @@ RESP2 command server, storage engine, and persistence layer.
 
 ## Current Status
 
-The repository contains the project skeleton, build configuration, documentation structure,
-and a smoke test. Network and Redis functionality are intentionally not implemented yet.
+The Linux network layer is implemented with non-blocking sockets, epoll LT, and a single-threaded
+Reactor. It includes connection ownership, growable input/output buffers, partial writes, and
+backpressure limits. The RESP2 module currently provides values, response encoding, and an
+incremental request parser for arrays and bulk strings.
+
+The executable still runs the earlier blocking echo server. Command dispatch, Redis commands,
+storage, expiration, and persistence are not implemented yet. The next milestone is an end-to-end
+`redis-cli -> TcpServer -> RESP -> PING/ECHO -> RESP` path.
 
 ## Requirements
 
 - CMake 3.22 or newer
 - A C++17 compiler
 - Ninja
-- Linux or WSL2 for epoll development
-
-The scaffold also builds on Windows, but the network layer will target Linux APIs.
+- Linux or WSL2; the network layer depends on Linux socket and epoll APIs.
 
 ## Build
 
@@ -32,10 +36,10 @@ Run the current executable:
 ./build/debug/src/mini_redis_server
 ```
 
-On Windows:
+Run the focused network verification, including ASan and UBSan builds:
 
-```powershell
-.\build\debug\src\mini_redis_server.exe
+```bash
+./scripts/test-network.sh
 ```
 
 ## Development
