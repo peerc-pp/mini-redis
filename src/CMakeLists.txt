@@ -14,8 +14,13 @@ add_library(
   protocol/resp_value.cc
   protocol/resp_encoder.cc
   protocol/resp_parser.cc
+  server/integer_arithmetic.cc
+  server/integer_parser.cc
+  server/list_range.cc
   server/session.cc
   server/command_registry.cc
+  storage/database.cc
+  storage/value.cc
 )
 
 target_include_directories(

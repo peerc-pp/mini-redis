@@ -10,13 +10,13 @@ class TcpConnection;
 
 class Session final {
  public:
-    explicit Session(const CommandRegistry& commands);
+    explicit Session(CommandRegistry& commands);
 
     void on_message(TcpConnection& connection, Buffer& input);
 
  private:
     RespParser parser_;
-    const CommandRegistry& commands_;
+    CommandRegistry& commands_;
 };
 
 }  // namespace mini_redis

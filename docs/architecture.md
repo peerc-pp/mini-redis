@@ -12,9 +12,9 @@
 ## Dependency Direction
 
 ```text
-server -> protocol -> storage
-   |
-   +----> net
+server -> protocol
+server -> storage
+server -> net
 
 persistence -> storage
 base <- all modules
@@ -22,3 +22,6 @@ base <- all modules
 
 The storage layer must not depend on sockets or RESP so it can later serve as a deterministic
 Raft state machine.
+
+Week-specific decisions are recorded in
+[`week-03-design-decisions.md`](week-03-design-decisions.md).

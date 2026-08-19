@@ -3,6 +3,7 @@
 #include "net/tcp_server.h"
 #include "server/command_registry.h"
 #include "server/session.h"
+#include "storage/database.h"
 
 #include <sys/socket.h>
 
@@ -110,7 +111,8 @@ bool wait_for_eof(int fd, mini_redis::EventLoop& loop) {
 class TestServer {
  public:
   TestServer()
-      : session_(commands_),
+      : commands_(database_),
+        session_(commands_),
         server_(
             loop_,
             mini_redis::TcpServerConfig{
@@ -145,6 +147,7 @@ class TestServer {
 
  private:
   mini_redis::EventLoop loop_;
+  mini_redis::Database database_;
   mini_redis::CommandRegistry commands_;
   mini_redis::Session session_;
   mini_redis::TcpServer server_;
@@ -165,11 +168,37 @@ bool test_pipeline_and_command_responses() {
       "*1\r\n$4\r\nPING\r\n"
       "*2\r\n$4\r\nECHO\r\n$5\r\nhello\r\n"
       "*2\r\n$4\r\nping\r\n$2\r\nhi\r\n"
+      "*3\r\n$3\r\nSET\r\n$4\r\nname\r\n$5\r\nalice\r\n"
+      "*2\r\n$3\r\nGET\r\n$4\r\nname\r\n"
+      "*2\r\n$6\r\nEXISTS\r\n$4\r\nname\r\n"
+      "*2\r\n$3\r\nDEL\r\n$4\r\nname\r\n"
+      "*2\r\n$3\r\nGET\r\n$4\r\nname\r\n"
+      "*2\r\n$6\r\nEXISTS\r\n$4\r\nname\r\n"
+      "*2\r\n$3\r\nDEL\r\n$4\r\nname\r\n"
+      "*2\r\n$3\r\nGET\r\n$7\r\nmissing\r\n"
+      "*3\r\n$3\r\nSET\r\n$5\r\nfirst\r\n$3\r\none\r\n"
+      "*3\r\n$3\r\nSET\r\n$6\r\nsecond\r\n$3\r\ntwo\r\n"
+      "*4\r\n$6\r\nEXISTS\r\n$5\r\nfirst\r\n$6\r\nsecond\r\n$7\r\nmissing\r\n"
+      "*4\r\n$3\r\nDEL\r\n$5\r\nfirst\r\n$6\r\nsecond\r\n$7\r\nmissing\r\n"
+      "*3\r\n$6\r\nEXISTS\r\n$5\r\nfirst\r\n$6\r\nsecond\r\n"
       "*1\r\n$4\r\nWHAT\r\n";
   const std::string expected =
       "+PONG\r\n"
       "$5\r\nhello\r\n"
       "$2\r\nhi\r\n"
+      "+OK\r\n"
+      "$5\r\nalice\r\n"
+      ":1\r\n"
+      ":1\r\n"
+      "$-1\r\n"
+      ":0\r\n"
+      ":0\r\n"
+      "$-1\r\n"
+      "+OK\r\n"
+      "+OK\r\n"
+      ":2\r\n"
+      ":2\r\n"
+      ":0\r\n"
       "-ERR unknown command 'WHAT'\r\n";
 
   std::string response;
@@ -177,6 +206,41 @@ bool test_pipeline_and_command_responses() {
          receive_exact_with_loop(
              client->fd(), expected.size(), fixture.loop(), response) &&
          response == expected;
+}
+
+bool test_clients_share_database() {
+  TestServer fixture;
+  if (!fixture.start()) {
+    return false;
+  }
+  std::optional<mini_redis::Socket> writer =
+      fixture.connect_client();
+  std::optional<mini_redis::Socket> reader =
+      fixture.connect_client();
+  if (!writer.has_value() || !reader.has_value()) {
+    return false;
+  }
+
+  const std::string set_request =
+      "*3\r\n$3\r\nSET\r\n$6\r\nshared\r\n$5\r\nvalue\r\n";
+  const std::string set_response = "+OK\r\n";
+  std::string response;
+  if (!send_all_with_loop(
+          writer->fd(), set_request, fixture.loop()) ||
+      !receive_exact_with_loop(
+          writer->fd(), set_response.size(), fixture.loop(), response) ||
+      response != set_response) {
+    return false;
+  }
+
+  const std::string get_request =
+      "*2\r\n$3\r\nGET\r\n$6\r\nshared\r\n";
+  const std::string get_response = "$5\r\nvalue\r\n";
+  return send_all_with_loop(
+             reader->fd(), get_request, fixture.loop()) &&
+         receive_exact_with_loop(
+             reader->fd(), get_response.size(), fixture.loop(), response) &&
+         response == get_response;
 }
 
 bool test_partial_request_waits_for_more_data() {
@@ -241,6 +305,8 @@ bool run_test(const char* name, bool (*test)()) {
 int main() {
   if (!run_test("pipeline and responses",
                 test_pipeline_and_command_responses) ||
+      !run_test("clients share database",
+                test_clients_share_database) ||
       !run_test("partial request",
                 test_partial_request_waits_for_more_data) ||
       !run_test("protocol error",

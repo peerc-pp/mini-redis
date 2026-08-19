@@ -7,7 +7,7 @@
 
 namespace mini_redis {
 
-Session::Session(const CommandRegistry& commands)
+Session::Session(CommandRegistry& commands)
     : commands_(commands) {}
 
 void Session::on_message(
