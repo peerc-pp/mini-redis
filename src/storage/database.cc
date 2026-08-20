@@ -9,29 +9,19 @@ void Database::set(std::string key, Value value) {
 }
 
 Value* Database::find(std::string_view key) {
-  const auto entry = values_.find(std::string(key));
-  if (entry == values_.end()) {
-    return nullptr;
-  }
-
-  return &entry->second;
+  return values_.find(std::string(key));
 }
 
 const Value* Database::find(std::string_view key) const {
-  const auto entry = values_.find(std::string(key));
-  if (entry == values_.end()) {
-    return nullptr;
-  }
-
-  return &entry->second;
+  return values_.find(std::string(key));
 }
 
 bool Database::erase(std::string_view key) {
-  return values_.erase(std::string(key)) != 0;
+  return values_.erase(std::string(key));
 }
 
 bool Database::exists(std::string_view key) const {
-  return values_.find(std::string(key)) != values_.end();
+  return values_.contains(std::string(key));
 }
 
 }  // namespace mini_redis

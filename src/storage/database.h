@@ -1,5 +1,6 @@
 #pragma once
 
+#include "storage/hash_table.h"
 #include "storage/value.h"
 
 #include <string>
@@ -21,7 +22,7 @@ class Database final {
   [[nodiscard]] bool exists(std::string_view key) const;
 
  private:
-  std::unordered_map<std::string, Value> values_;
+  HashTable<std::string, Value> values_;
 };
 
 }  // namespace mini_redis

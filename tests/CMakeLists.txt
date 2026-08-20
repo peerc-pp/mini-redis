@@ -186,6 +186,24 @@ add_test(
   COMMAND mini_redis_list_range_tests
 )
 
+add_executable(
+  mini_redis_hash_table_tests
+  unit/hash_table_test.cc
+)
+
+target_link_libraries(
+  mini_redis_hash_table_tests
+  PRIVATE
+    mini_redis_core
+)
+
+mini_redis_set_project_warnings(mini_redis_hash_table_tests)
+mini_redis_enable_sanitizers(mini_redis_hash_table_tests)
+
+add_test(
+  NAME mini_redis_hash_table_tests
+  COMMAND mini_redis_hash_table_tests
+)
 find_package(Python3 COMPONENTS Interpreter QUIET)
 find_program(MINI_REDIS_REDIS_SERVER_EXECUTABLE redis-server)
 

@@ -8,6 +8,7 @@ project(
 )
 
 option(MINI_REDIS_BUILD_TESTS "Build Mini-Redis tests" ON)
+option(MINI_REDIS_BUILD_BENCHMARKS "Build Mini-Redis benchmarks" OFF)
 option(MINI_REDIS_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -25,4 +26,8 @@ if(MINI_REDIS_BUILD_TESTS)
   include(CTest)
   enable_testing()
   add_subdirectory(tests)
+endif()
+
+if(MINI_REDIS_BUILD_BENCHMARKS)
+  add_subdirectory(bench)
 endif()
