@@ -1,5 +1,6 @@
 #include "server/command_registry.h"
 
+#include "server/double_parser.h"
 #include "server/integer_arithmetic.h"
 #include "server/integer_parser.h"
 #include "server/list_range.h"
@@ -91,6 +92,27 @@ CommandRegistry::CommandRegistry(Database& database)
     commands_.emplace(
         "HGETALL",
         CommandSpec{1, 1, &CommandRegistry::execute_hgetall});
+
+    commands_.emplace(
+        "ZADD",
+        CommandSpec{3, 3, &CommandRegistry::execute_zadd});
+
+    commands_.emplace(
+        "ZREM",
+        CommandSpec{2, std::numeric_limits<std::size_t>::max(),
+                    &CommandRegistry::execute_zrem});
+
+    commands_.emplace(
+        "ZSCORE",
+        CommandSpec{2, 2, &CommandRegistry::execute_zscore});
+
+    commands_.emplace(
+        "ZRANK",
+        CommandSpec{2, 2, &CommandRegistry::execute_zrank});
+
+    commands_.emplace(
+        "ZRANGE",
+        CommandSpec{3, 3, &CommandRegistry::execute_zrange});
 
     commands_.emplace(
         "DEL",
@@ -571,6 +593,163 @@ RespValue CommandRegistry::execute_hgetall(
     }
 
     return RespValue::array(std::move(elements));
+}
+
+RespValue CommandRegistry::execute_zadd(
+    const RequestElements& request_elements) {
+    const auto score =
+        parse_double(request_elements[2].string_value());
+    if (!score.has_value()) {
+        return RespValue::error(
+            "ERR value is not a valid float");
+    }
+
+    const std::string& key =
+        request_elements[1].string_value();
+    const std::string& member =
+        request_elements[3].string_value();
+    Value* value = database_.find(key);
+
+    if (value == nullptr) {
+        Value new_value = Value::zset();
+        Value::SortedSet* zset = new_value.as_zset();
+        const auto result = zset->add(*score, member);
+        if (result == Value::SortedSet::AddResult::kInvalidScore) {
+            return RespValue::error(
+                "ERR value is not a valid float");
+        }
+        database_.set(key, std::move(new_value));
+        return RespValue::integer(1);
+    }
+
+    Value::SortedSet* zset = value->as_zset();
+    if (zset == nullptr) {
+        return RespValue::error(
+            "WRONGTYPE Operation against a key holding the wrong kind of value");
+    }
+
+    const auto result = zset->add(*score, member);
+    if (result == Value::SortedSet::AddResult::kInvalidScore) {
+        return RespValue::error(
+            "ERR value is not a valid float");
+    }
+    return RespValue::integer(
+        result == Value::SortedSet::AddResult::kAdded ? 1 : 0);
+}
+
+RespValue CommandRegistry::execute_zrem(
+    const RequestElements& request_elements) {
+    const std::string& key =
+        request_elements[1].string_value();
+    Value* value = database_.find(key);
+    if (value == nullptr) {
+        return RespValue::integer(0);
+    }
+
+    Value::SortedSet* zset = value->as_zset();
+    if (zset == nullptr) {
+        return RespValue::error(
+            "WRONGTYPE Operation against a key holding the wrong kind of value");
+    }
+
+    std::int64_t removed = 0;
+    for (std::size_t index = 2;
+         index < request_elements.size(); ++index) {
+        if (zset->remove(
+                request_elements[index].string_value())) {
+            ++removed;
+        }
+    }
+
+    if (zset->empty()) {
+        static_cast<void>(database_.erase(key));
+    }
+    return RespValue::integer(removed);
+}
+
+RespValue CommandRegistry::execute_zscore(
+    const RequestElements& request_elements) {
+    const Value* value =
+        database_.find(request_elements[1].string_value());
+    if (value == nullptr) {
+        return RespValue::null_bulk_string();
+    }
+
+    const Value::SortedSet* zset = value->as_zset();
+    if (zset == nullptr) {
+        return RespValue::error(
+            "WRONGTYPE Operation against a key holding the wrong kind of value");
+    }
+
+    const auto score =
+        zset->score_of(request_elements[2].string_value());
+    if (!score.has_value()) {
+        return RespValue::null_bulk_string();
+    }
+    return RespValue::bulk_string(format_double(*score));
+}
+
+RespValue CommandRegistry::execute_zrank(
+    const RequestElements& request_elements) {
+    const Value* value =
+        database_.find(request_elements[1].string_value());
+    if (value == nullptr) {
+        return RespValue::null_bulk_string();
+    }
+
+    const Value::SortedSet* zset = value->as_zset();
+    if (zset == nullptr) {
+        return RespValue::error(
+            "WRONGTYPE Operation against a key holding the wrong kind of value");
+    }
+
+    const auto rank =
+        zset->rank_of(request_elements[2].string_value());
+    if (!rank.has_value()) {
+        return RespValue::null_bulk_string();
+    }
+    return RespValue::integer(
+        static_cast<std::int64_t>(*rank));
+}
+
+RespValue CommandRegistry::execute_zrange(
+    const RequestElements& request_elements) {
+    const auto start =
+        parse_integer(request_elements[2].string_value());
+    const auto stop =
+        parse_integer(request_elements[3].string_value());
+    if (!start.has_value() || !stop.has_value()) {
+        return RespValue::error(
+            "ERR value is not an integer or out of range");
+    }
+
+    const Value* value =
+        database_.find(request_elements[1].string_value());
+    if (value == nullptr) {
+        return RespValue::array({});
+    }
+
+    const Value::SortedSet* zset = value->as_zset();
+    if (zset == nullptr) {
+        return RespValue::error(
+            "WRONGTYPE Operation against a key holding the wrong kind of value");
+    }
+
+    const auto range =
+        normalize_list_range(zset->size(), *start, *stop);
+    if (!range.has_value()) {
+        return RespValue::array({});
+    }
+
+    const auto entries =
+        zset->range_by_rank(range->begin, range->end - 1);
+    std::vector<RespValue> members;
+    members.reserve(entries.size());
+    for (const auto& entry : entries) {
+        members.push_back(
+            RespValue::bulk_string(entry.member));
+    }
+    return RespValue::array(std::move(members));
 }
 
 RespValue CommandRegistry::execute_del(

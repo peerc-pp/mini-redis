@@ -19,6 +19,10 @@ Value Value::hash(Hash value) {
   return Value(Storage{std::move(value)});
 }
 
+Value Value::zset() {
+  return Value(Storage{std::make_unique<SortedSet>()});
+}
+
 bool Value::is_string() const noexcept {
   return std::holds_alternative<String>(storage_);
 }
@@ -29,6 +33,10 @@ bool Value::is_list() const noexcept {
 
 bool Value::is_hash() const noexcept {
   return std::holds_alternative<Hash>(storage_);
+}
+
+bool Value::is_zset() const noexcept {
+  return std::holds_alternative<ZSetStorage>(storage_);
 }
 
 Value::String* Value::as_string() noexcept {
@@ -53,6 +61,17 @@ Value::Hash* Value::as_hash() noexcept {
 
 const Value::Hash* Value::as_hash() const noexcept {
   return std::get_if<Hash>(&storage_);
+}
+
+Value::SortedSet* Value::as_zset() noexcept {
+  ZSetStorage* value = std::get_if<ZSetStorage>(&storage_);
+  return value == nullptr ? nullptr : value->get();
+}
+
+const Value::SortedSet* Value::as_zset() const noexcept {
+  const ZSetStorage* value =
+      std::get_if<ZSetStorage>(&storage_);
+  return value == nullptr ? nullptr : value->get();
 }
 
 }  // namespace mini_redis

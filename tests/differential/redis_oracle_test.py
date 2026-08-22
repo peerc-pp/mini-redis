@@ -178,6 +178,20 @@ def compare_servers(mini_port: int, redis_port: int) -> None:
     reference = RespConnection("127.0.0.1", redis_port)
     try:
         commands = command_sequence()
+        commands.extend([
+            ["ZADD", "zset:key", "100", "carol"],
+            ["ZADD", "zset:key", "80", "bob"],
+            ["ZADD", "zset:key", "100", "alice"],
+            ["ZADD", "zset:key", "130", "alice"],
+            ["ZSCORE", "zset:key", "alice"],
+            ["ZRANK", "zset:key", "carol"],
+            ["ZRANGE", "zset:key", "0", "-1"],
+            ["ZRANGE", "zset:key", "-2", "-1"],
+            ["ZREM", "zset:key", "missing", "alice"],
+            ["ZRANGE", "zset:key", "0", "-1"],
+            ["ZREM", "zset:key", "bob", "carol"],
+            ["EXISTS", "zset:key"],
+        ])
         for number, command in enumerate(commands, start=1):
             mini_reply = normalize_reply(command, mini.execute(command))
             redis_reply = normalize_reply(command, reference.execute(command))

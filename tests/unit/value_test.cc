@@ -69,6 +69,28 @@ bool test_hash_value() {
          value.as_list() == nullptr;
 }
 
+bool test_zset_value() {
+  Value value = Value::zset();
+  Value::SortedSet* zset = value.as_zset();
+  if (zset == nullptr ||
+      zset->add(100.0, "alice") !=
+          Value::SortedSet::AddResult::kAdded) {
+    return false;
+  }
+
+  const Value& const_value = value;
+  const Value::SortedSet* stored = const_value.as_zset();
+  return value.is_zset() &&
+         !value.is_string() &&
+         !value.is_list() &&
+         !value.is_hash() &&
+         stored != nullptr &&
+         stored->score_of("alice") == 100.0 &&
+         value.as_string() == nullptr &&
+         value.as_list() == nullptr &&
+         value.as_hash() == nullptr;
+}
+
 bool run_test(const char* name, bool (*test)()) {
   if (test()) {
     return true;
@@ -83,7 +105,8 @@ bool run_test(const char* name, bool (*test)()) {
 int main() {
   if (!run_test("string value", test_string_value) ||
       !run_test("list value", test_list_value) ||
-      !run_test("hash value", test_hash_value)) {
+      !run_test("hash value", test_hash_value) ||
+      !run_test("zset value", test_zset_value)) {
     return 1;
   }
 

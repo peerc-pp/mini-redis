@@ -16,9 +16,10 @@ decision if commands need to serve a non-RESP API or another result consumer.
 
 ## Value types
 
-The Week 3 `Value` variant contains String, List, and Hash. ZSet is deliberately
-deferred to Week 5 so its dictionary and skip-list indexes can be designed and
-tested together instead of adding a temporary placeholder representation.
+The Week 3 `Value` variant originally contained String, List, and Hash. ZSet was deliberately
+deferred instead of adding a temporary placeholder representation. Week 5 added it as an
+owned dual-index object after its dictionary and SkipList could be designed and tested together;
+see [`week-05-zset.md`](week-05-zset.md).
 
 Wrong accessors return nullable borrowed pointers. A null `Database::find`
 result means that the key is missing; a null `Value::as_*` result means that the
@@ -43,6 +44,6 @@ those consumers is implemented.
 
 ## Validation
 
-Week 3 provides 20 commands, storage tests that run without networking, debug
+Week 3 provided 20 commands, storage tests that run without networking, debug
 and sanitizer test presets, and a typed black-box differential test against
 Redis 7. HGETALL responses are compared as unordered field/value pairs.

@@ -6,14 +6,35 @@ RESP2 command server, storage engine, and persistence layer.
 
 ## Current Status
 
-The Linux network layer is implemented with non-blocking sockets, epoll LT, and a single-threaded
-Reactor. It includes connection ownership, growable input/output buffers, partial writes, and
-backpressure limits. The RESP2 module currently provides values, response encoding, and an
-incremental request parser for arrays and bulk strings.
+Weeks 0-5 are complete. The executable runs an end-to-end RESP2 server on
+`127.0.0.1:6380` through the following path:
 
-The executable still runs the earlier blocking echo server. Command dispatch, Redis commands,
-storage, expiration, and persistence are not implemented yet. The next milestone is an end-to-end
-`redis-cli -> TcpServer -> RESP -> PING/ECHO -> RESP` path.
+```text
+redis-cli -> TcpServer -> Session -> RespParser -> CommandRegistry -> Database
+```
+
+The current implementation includes:
+
+- non-blocking sockets, epoll LT, a single-threaded Reactor, partial writes, and backpressure;
+- an incremental RESP2 parser and encoder with packet-boundary and pipeline coverage;
+- String, List, Hash, and ZSet values with 25 core commands;
+- Redis-oracle differential tests for the supported command subset;
+- a production `HashTable` with two-table incremental rehash, random differential tests, and a
+  synchronous-rehash comparison benchmark.
+
+Week 6 is the next milestone: add TTL with lazy expiration, budgeted active expiration, an
+injectable clock, and the `EXPIRE`, `PEXPIRE`, `TTL`, `PTTL`, and `PERSIST` commands.
+
+## Supported Commands
+
+- Core/String: `PING`, `ECHO`, `SET`, `GET`, `DEL`, `EXISTS`, `INCR`, `DECR`
+- List: `LPUSH`, `RPUSH`, `LPOP`, `RPOP`, `LLEN`, `LRANGE`
+- Hash: `HSET`, `HGET`, `HDEL`, `HEXISTS`, `HLEN`, `HGETALL`
+- ZSet: `ZADD`, `ZREM`, `ZSCORE`, `ZRANK`, `ZRANGE`
+
+The command surface intentionally implements a Redis-compatible subset. In particular, the first
+`ZRANGE` form is `ZRANGE key start stop`: it returns members, supports negative indexes, and does
+not yet implement `WITHSCORES`.
 
 ## Requirements
 
@@ -27,20 +48,33 @@ storage, expiration, and persistence are not implemented yet. The next milestone
 ```bash
 cmake --preset debug
 cmake --build --preset debug
-ctest --preset debug
+ctest --preset debug --output-on-failure
 ```
 
 Run the current executable:
 
 ```bash
 ./build/debug/src/mini_redis_server
+redis-cli -p 6380 PING
 ```
 
-Run the focused network verification, including ASan and UBSan builds:
+Run the Debug and sanitizer test suites:
 
 ```bash
-./scripts/test-network.sh
+ctest --preset debug --output-on-failure
+cmake --preset sanitizers
+cmake --build --preset sanitizers
+ctest --preset sanitizers --output-on-failure
 ```
+
+Python 3 and `redis-server` must be available on `PATH` for the Redis-oracle differential test to
+be registered.
+
+Version design and verification records:
+
+- [Week 4: incremental HashTable and rehash](docs/week-04-hash-table.md)
+- [Week 5: ZSet and SkipList](docs/week-05-zset.md)
+- [HashTable benchmark reproduction and results](docs/benchmark.md)
 
 ## Development
 

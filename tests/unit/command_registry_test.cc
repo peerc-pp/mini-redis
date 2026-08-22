@@ -729,6 +729,80 @@ bool test_hgetall() {
 
 
 
+bool test_zset_commands() {
+  CommandFixture fixture;
+
+  const RespValue carol = fixture.commands.execute(
+      make_command({"ZADD", "board", "100", "carol"}));
+  const RespValue bob = fixture.commands.execute(
+      make_command({"ZADD", "board", "80", "bob"}));
+  const RespValue alice = fixture.commands.execute(
+      make_command({"ZADD", "board", "100", "alice"}));
+  const RespValue updated = fixture.commands.execute(
+      make_command({"ZADD", "board", "130", "alice"}));
+  const RespValue score = fixture.commands.execute(
+      make_command({"ZSCORE", "board", "alice"}));
+  const RespValue rank = fixture.commands.execute(
+      make_command({"ZRANK", "board", "carol"}));
+  const RespValue all = fixture.commands.execute(
+      make_command({"ZRANGE", "board", "0", "-1"}));
+  const RespValue tail = fixture.commands.execute(
+      make_command({"ZRANGE", "board", "-2", "-1"}));
+  const RespValue removed = fixture.commands.execute(
+      make_command({"ZREM", "board", "missing", "alice"}));
+  const RespValue remaining = fixture.commands.execute(
+      make_command({"ZRANGE", "board", "0", "-1"}));
+  const RespValue emptied = fixture.commands.execute(
+      make_command({"ZREM", "board", "bob", "carol"}));
+
+  return is_integer_response(carol, 1) &&
+         is_integer_response(bob, 1) &&
+         is_integer_response(alice, 1) &&
+         is_integer_response(updated, 0) &&
+         is_string_response(
+             score, RespValue::Type::kBulkString, "130") &&
+         is_integer_response(rank, 1) &&
+         is_bulk_string_array(all, {"bob", "carol", "alice"}) &&
+         is_bulk_string_array(tail, {"carol", "alice"}) &&
+         is_integer_response(removed, 1) &&
+         is_bulk_string_array(remaining, {"bob", "carol"}) &&
+         is_integer_response(emptied, 2) &&
+         !fixture.database.exists("board");
+}
+
+bool test_zset_boundaries_and_errors() {
+  CommandFixture fixture;
+  fixture.database.set(
+      "plain", mini_redis::Value::string("value"));
+
+  const RespValue invalid_score = fixture.commands.execute(
+      make_command({"ZADD", "invalid", "nan", "alice"}));
+  const RespValue missing_score = fixture.commands.execute(
+      make_command({"ZSCORE", "missing", "alice"}));
+  const RespValue missing_rank = fixture.commands.execute(
+      make_command({"ZRANK", "missing", "alice"}));
+  const RespValue missing_range = fixture.commands.execute(
+      make_command({"ZRANGE", "missing", "0", "-1"}));
+  const RespValue invalid_index = fixture.commands.execute(
+      make_command({"ZRANGE", "missing", "x", "-1"}));
+  const RespValue wrong_type = fixture.commands.execute(
+      make_command({"ZADD", "plain", "1", "alice"}));
+
+  return is_string_response(
+             invalid_score, RespValue::Type::kError,
+             "ERR value is not a valid float") &&
+         !fixture.database.exists("invalid") &&
+         missing_score.type() == RespValue::Type::kNullBulkString &&
+         missing_rank.type() == RespValue::Type::kNullBulkString &&
+         is_bulk_string_array(missing_range, {}) &&
+         is_string_response(
+             invalid_index, RespValue::Type::kError,
+             "ERR value is not an integer or out of range") &&
+         is_string_response(
+             wrong_type, RespValue::Type::kError,
+             "WRONGTYPE Operation against a key holding the wrong kind of value");
+}
+
 bool run_test(const char* name, bool (*test)()) {
   if (test()) {
     return true;
@@ -775,7 +849,9 @@ int main() {
       !run_test("HDEL errors", test_hdel_missing_and_wrong_type) ||
       !run_test("HEXISTS", test_hexists) ||
       !run_test("HLEN", test_hlen) ||
-      !run_test("HGETALL", test_hgetall)) {
+      !run_test("HGETALL", test_hgetall) ||
+      !run_test("ZSet commands", test_zset_commands) ||
+      !run_test("ZSet errors", test_zset_boundaries_and_errors)) {
     return 1;
   }
   return 0;

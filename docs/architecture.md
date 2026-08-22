@@ -23,5 +23,10 @@ base <- all modules
 The storage layer must not depend on sockets or RESP so it can later serve as a deterministic
 Raft state machine.
 
-Week-specific decisions are recorded in
-[`week-03-design-decisions.md`](week-03-design-decisions.md).
+Week-specific decisions are recorded in:
+
+- [`week-03-design-decisions.md`](week-03-design-decisions.md): object model and command semantics;
+- [`week-04-hash-table.md`](week-04-hash-table.md): incremental rehash, invariants, integration,
+  verification, and measured limits;
+- [`week-05-zset.md`](week-05-zset.md): SkipList structure, ZSet dual-index invariants, command
+  scope, failure ordering, and verification.

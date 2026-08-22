@@ -16,10 +16,13 @@ add_library(
   protocol/resp_parser.cc
   server/integer_arithmetic.cc
   server/integer_parser.cc
+  server/double_parser.cc
   server/list_range.cc
   server/session.cc
   server/command_registry.cc
   storage/database.cc
+  storage/skip_list.cc
+  storage/zset.cc
   storage/value.cc
 )
 

@@ -38,7 +38,19 @@ Workloads:
 - There is no separate warm-up. Repeat on an idle machine before making an
   external performance claim.
 
-Representative result from WSL2, GCC 13.3.0, Release, 2026-08-20:
+Representative run environment:
+
+| Item | Value |
+|---|---|
+| Date | 2026-08-20 |
+| Revision | `fc83871` |
+| OS | WSL2, Linux 6.18.33.2-microsoft-standard-WSL2, x86-64 |
+| CPU visible to WSL2 | Intel Core Ultra 9 275HX, 24 logical CPUs |
+| Compiler | GCC 13.3.0 (`Ubuntu 13.3.0-6ubuntu2~24.04.1`) |
+| CMake / Ninja | CMake 3.28.3 / Ninja 1.11.1 |
+| Build | Release, tests disabled, benchmark target enabled |
+
+Representative output:
 
 | Workload | Strategy | p50 (ns) | p99 (ns) | max (ns) |
 |---|---|---:|---:|---:|
@@ -52,3 +64,16 @@ typical insertion latency while reducing tail latency. The remaining
 multi-millisecond continuous-workload maximum shows that allocating the new
 bucket array is still synchronous; node migration is incremental, but allocation
 is not.
+
+## Interpretation Boundaries
+
+- `continuous_insert` is one run containing 300,000 timed operations per strategy. It includes
+  normal inserts and every growth event encountered by that run.
+- `growth_trigger` contains 84 samples per strategy: seven bucket counts with 12 independently
+  constructed tables each.
+- The program reports p50, p99, and maximum per-operation latency. It does not report throughput:
+  this experiment isolates latency spikes rather than sustained server capacity.
+- There is no warm-up, CPU pinning, governor control, or automatic multi-run aggregation. Treat the
+  table as a representative local comparison, not a hardware-independent performance claim.
+- The two implementations are deliberately comparable rather than identical production designs.
+  Results describe this repository and workload; they do not claim parity with Redis `dict.c`.

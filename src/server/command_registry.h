@@ -105,6 +105,21 @@ class CommandRegistry final {
     RespValue execute_hgetall(
         const RequestElements& request_elements);
 
+    RespValue execute_zadd(
+        const RequestElements& request_elements);
+
+    RespValue execute_zrem(
+        const RequestElements& request_elements);
+
+    RespValue execute_zscore(
+        const RequestElements& request_elements);
+
+    RespValue execute_zrank(
+        const RequestElements& request_elements);
+
+    RespValue execute_zrange(
+        const RequestElements& request_elements);
+
     RespValue execute_del(
         const RequestElements& request_elements);
 
